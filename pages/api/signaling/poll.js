@@ -54,7 +54,8 @@ export default async function handler(req, res) {
       }
     }
     
-    // 尝试获取远程Peer的IP信息，确保不是自己的IP
+    // The remote peer is selected by peer ID. Do not discard its location just
+    // because both devices share a NAT address or VPN exit IP.
     let ipInfo = null;
     let peerIPInfo = null; // 这个将存储远程对等方的IP信息
     
@@ -64,11 +65,6 @@ export default async function handler(req, res) {
         // 修复点：使用remotePeerId而不是peerId获取远程对等方的IP信息
         ipInfo = await getIPInfo(roomId, remotePeerId);
         
-        // 额外验证：确保返回的IP与自己的不同
-        if (ipInfo && ipInfo.ip === selfPeer.ip) {
-          console.warn(`警告: 检测到IP相同的对等方，忽略IP信息. roomId=${roomId}`);
-          ipInfo = null;
-        }
       } catch (error) {
         console.error(`获取远程IP信息出错: ${error.message}`);
       }

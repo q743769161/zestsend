@@ -395,16 +395,15 @@ export default function Room() {
           setRemotePeerId(data.remotePeerId);
         }
         
-        // 更新对方IP信息 - 添加额外的验证逻辑
+        // remotePeerId already identifies the other browser. Two devices can
+        // legitimately share one public IP behind NAT or a VPN exit.
         if (data.ipInfo && 
-            JSON.stringify(data.ipInfo) !== JSON.stringify(peerIpInfo) && 
-            (ipInfo?.ip !== data.ipInfo.ip)) { // 确保不是自己的IP
+            JSON.stringify(data.ipInfo) !== JSON.stringify(peerIpInfo)) {
           
           setPeerIpInfo(data.ipInfo);
           console.log("更新对方IP信息:", data.ipInfo);
         } else if (data.peerIPInfo && 
-                   JSON.stringify(data.peerIPInfo) !== JSON.stringify(peerIpInfo) &&
-                   (ipInfo?.ip !== data.peerIPInfo.ip)) { // 确保不是自己的IP
+                   JSON.stringify(data.peerIPInfo) !== JSON.stringify(peerIpInfo)) {
           
           // 使用对方返回的自己的IP信息作为对方的IP信息
           setPeerIpInfo(data.peerIPInfo);

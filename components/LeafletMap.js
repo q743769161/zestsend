@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { hasUsableCoordinates } from '../lib/ip-location.mjs';
 
 // 设置一个变量来存储Leaflet库的引用
 let L;
@@ -96,12 +97,12 @@ export default function LeafletMap({ center, zoom, bounds, ipInfo, peerIpInfo })
     const newMarkers = [];
     
     // 添加自己的位置标记 - 添加空值检查
-    if (ipInfo?.latitude && ipInfo?.longitude) {
+    if (hasUsableCoordinates(ipInfo)) {
       newMarkers.push({
         position: [parseFloat(ipInfo.latitude), parseFloat(ipInfo.longitude)],
         icon: createIcon('#3b82f6', L),
         popup: {
-          title: '您的位置',
+          title: '您的 IP 大致位置',
           location: `${ipInfo.city || '未知城市'}, ${ipInfo.country_name || '未知国家'}`,
           ip: ipInfo.ip || '未知IP',
           isp: ipInfo.org || '未知ISP',
@@ -112,12 +113,12 @@ export default function LeafletMap({ center, zoom, bounds, ipInfo, peerIpInfo })
     }
     
     // 添加对方的位置标记 - 添加空值检查
-    if (peerIpInfo?.latitude && peerIpInfo?.longitude) {
+    if (hasUsableCoordinates(peerIpInfo)) {
       newMarkers.push({
         position: [parseFloat(peerIpInfo.latitude), parseFloat(peerIpInfo.longitude)],
         icon: createIcon('#10b981', L),
         popup: {
-          title: '对方位置',
+          title: '对方 IP 大致位置',
           location: `${peerIpInfo.city || '未知城市'}, ${peerIpInfo.country_name || '未知国家'}`,
           ip: peerIpInfo.ip || '未知IP',
           isp: peerIpInfo.org || '未知ISP',

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { FiUsers } from 'react-icons/fi';
 import { isServer } from '../lib/nossr';
+import { hasUsableCoordinates } from '../lib/ip-location.mjs';
 
 // 动态导入时明确指定不进行SSR
 const MapWithNoSSR = dynamic(() => import('./LeafletMap'), {
@@ -28,7 +29,7 @@ export default function OpenStreetMap({ ipInfo, peerIpInfo, distance }) {
     if (!isMounted) return;
     
     // 计算地图中心和缩放级别
-    if (ipInfo?.latitude && ipInfo?.longitude && peerIpInfo?.latitude && peerIpInfo?.longitude) {
+    if (hasUsableCoordinates(ipInfo) && hasUsableCoordinates(peerIpInfo)) {
       const lat1 = parseFloat(ipInfo.latitude);
       const lng1 = parseFloat(ipInfo.longitude);
       const lat2 = parseFloat(peerIpInfo.latitude);
@@ -76,7 +77,7 @@ export default function OpenStreetMap({ ipInfo, peerIpInfo, distance }) {
       setMapZoom(zoom);
     } 
     // 如果只有自己的IP信息
-    else if (ipInfo?.latitude && ipInfo?.longitude) {
+    else if (hasUsableCoordinates(ipInfo)) {
       setMapCenter([parseFloat(ipInfo.latitude), parseFloat(ipInfo.longitude)]);
       setMapZoom(10); // 单点显示时用更高的缩放级别
       setBounds(null); // 单点不需要边界
@@ -93,10 +94,10 @@ export default function OpenStreetMap({ ipInfo, peerIpInfo, distance }) {
   }
 
   // 如果没有IP信息，显示加载中
-  if (!ipInfo?.latitude || !ipInfo?.longitude) {
+  if (!hasUsableCoordinates(ipInfo)) {
     return (
       <div className="h-60 w-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
-        <p className="text-gray-500 dark:text-gray-400">等待IP信息...</p>
+        <p className="text-gray-500 dark:text-gray-400">无法确定该 IP 的地图位置</p>
       </div>
     );
   }

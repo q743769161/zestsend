@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { FiUsers, FiMapPin } from "react-icons/fi";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
+import {
+  hasUsableCoordinates,
+  shouldDisplayPeerLocation,
+} from "../lib/ip-location.mjs";
 
 // 通过dynamic import确保OpenStreetMap仅在客户端加载
 const OSMap = dynamic(() => import("./OpenStreetMap"), {
@@ -21,12 +25,8 @@ export default function IPMap({ ipInfo, peerIpInfo }) {
   useEffect(() => {
     try {
       if (
-        ipInfo?.latitude &&
-        ipInfo?.longitude &&
-        peerIpInfo?.latitude &&
-        peerIpInfo?.longitude &&
-        // 关键检查：确保对方IP不等于自己的IP
-        peerIpInfo.ip !== ipInfo.ip
+        hasUsableCoordinates(ipInfo) &&
+        shouldDisplayPeerLocation(ipInfo, peerIpInfo)
       ) {
         const lat1 = parseFloat(ipInfo.latitude);
         const lon1 = parseFloat(ipInfo.longitude);
@@ -79,11 +79,7 @@ export default function IPMap({ ipInfo, peerIpInfo }) {
 
   // 检查是否应该显示对方的位置
   const shouldShowPeerLocation =
-    peerIpInfo &&
-    ipInfo &&
-    peerIpInfo.ip !== ipInfo.ip && // 确保不是同一个IP
-    peerIpInfo.latitude &&
-    peerIpInfo.longitude;
+    shouldDisplayPeerLocation(ipInfo, peerIpInfo);
 
   // 只传递有效的对方IP信息给地图组件
   const validPeerIpInfo = shouldShowPeerLocation ? peerIpInfo : null;
@@ -112,7 +108,7 @@ export default function IPMap({ ipInfo, peerIpInfo }) {
               {/* 您的位置信息 - 添加空值检查 */}
               <div className="flex-1 p-2 rounded-md bg-blue-50 dark:bg-blue-900/30">
                 <h4 className="font-medium text-sm flex items-center">
-                  您的位置
+                  您的 IP 大致位置
                 </h4>
                 {ipInfo ? (
                   <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -131,7 +127,7 @@ export default function IPMap({ ipInfo, peerIpInfo }) {
               {peerIpInfo ? (
                 <div className="flex-1 p-2 rounded-md bg-green-50 dark:bg-green-900/30">
                   <h4 className="font-medium text-sm flex items-center">
-                    对方位置
+                    对方 IP 大致位置
                   </h4>
                   <p className="text-xs text-gray-600 dark:text-gray-300">
                     {peerIpInfo.ip} - {peerIpInfo.city || "未知城市"},{" "}
@@ -150,6 +146,9 @@ export default function IPMap({ ipInfo, peerIpInfo }) {
                 </div>
               )}
             </div>
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              基于公网 IP 推测（非 GPS 精确位置）；使用 VPN、代理或移动网络时，显示的是出口 IP 的大致位置。
+            </p>
           </div>
         </>
       )}
