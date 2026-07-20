@@ -295,7 +295,7 @@ export default function Room() {
         return; 
       }
 
-      // 附带roomId和peerId参数请求IP信息，使服务器直接存储到Redis
+      // 附带roomId和peerId参数请求IP信息，使服务器直接存储到房间状态对象
       const res = await fetch(`/api/ip?roomId=${roomId}&peerId=${peerId}`);
       
       if (res.ok) {
@@ -303,7 +303,7 @@ export default function Room() {
         console.log('获取到IP信息:', ipData);
         setIpInfo(ipData);
         
-        // 已在服务器直接存储到Redis，不需要额外的存储请求
+        // 已在服务器直接持久化，不需要额外的存储请求
         addLog(`获取到IP信息: ${ipData.city}, ${ipData.country_name}`, 'info');
       } else {
         throw new Error('获取IP信息失败，服务器返回错误');
@@ -489,7 +489,7 @@ export default function Room() {
   return interval;
 };
 
-  // 获取对方IP信息 - 改进版，直接从Redis获取
+  // 获取对方IP信息 - 直接从房间状态对象获取
   const fetchPeerIPInfo = async () => {
     if (!remotePeerId || !roomId) {
       console.log('无法获取对方IP信息：缺少remotePeerId或roomId');
@@ -507,7 +507,7 @@ export default function Room() {
           setPeerIpInfo(data.ipInfo);
           addLog(`已获取对方位置信息: ${data.ipInfo.city}, ${data.ipInfo.country_name}`, 'info');
         } else {
-          console.log('获取对方IP信息失败：Redis中无数据');
+          console.log('获取对方IP信息失败：房间状态中无数据');
         }
       } else {
         console.error('获取对方IP信息请求失败');

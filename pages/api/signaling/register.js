@@ -1,12 +1,5 @@
-import { getRoom, setRoom } from '../../../lib/redis';
-
-// 获取客户端IP
-function getClientIP(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  return forwarded 
-    ? forwarded.split(',')[0] 
-    : req.socket.remoteAddress || '127.0.0.1';
-}
+import { registerPeer } from '../../../lib/redis';
+import { getClientIP } from '../../../lib/client-ip.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,16 +14,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 获取房间信息
-    let room = await getRoom(roomId);
-    
-    if (!room) {
+    const result = await registerPeer(roomId, peerId, isInitiator, clientIP);
+
+    if (result.notFound) {
       return res.status(404).json({ message: '房间不存在' });
     }
-    
-    // 检查是否已经注册了相同的peerId
-    const existingPeer = room.peers?.find(p => p.id === peerId);
-    if (existingPeer) {
+
+    if (result.roomFull) {
+      return res.status(403).json({
+        message: '房间已满，无法注册',
+        roomFull: true
+      });
+    }
+
+    if (result.alreadyRegistered) {
       console.log(`已存在相同的PeerId: ${peerId}, 跳过注册`);
       return res.status(200).json({
         success: true,
@@ -40,32 +37,6 @@ export default async function handler(req, res) {
         alreadyRegistered: true
       });
     }
-    
-    // 添加PeerId到房间信息
-    const peerType = isInitiator ? 'initiator' : 'receiver';
-    const peerInfo = {
-      id: peerId,
-      type: peerType,
-      ip: clientIP, // 存储IP地址
-      joinedAt: new Date().toISOString()
-    };
-    
-    // 更新peers数组
-    if (!room.peers) {
-      room.peers = [];
-    }
-    
-    // 检查IP是否已存在，如果存在则替换而不是添加
-    const existingPeerIndex = room.peers.findIndex(p => p.ip === clientIP);
-    if (existingPeerIndex >= 0) {
-      room.peers[existingPeerIndex] = peerInfo;
-    } else {
-      room.peers.push(peerInfo);
-    }
-    
-    // 更新房间信息
-    await setRoom(roomId, room);
-    
     return res.status(200).json({
       success: true,
       peerId,

@@ -19,7 +19,7 @@ ZestSend 是一个基于 WebRTC 的点对点(P2P)文件传输网站，支持安�
 
 - Next.js - React 框架
 - WebRTC/PeerJS - P2P 数据传输
-- Redis - 临时存储信令数据
+- Cloudflare Durable Objects - 临时存储房间与信令数据
 - Tailwind CSS - 前端样式
 - Framer Motion - 动画效果
 - OpenStreetMap & Leaflet - 开源地图解决方案
@@ -39,10 +39,10 @@ cd zestsend
 npm install
 ```
 
-3. 创建环境变量文件 `.env.local`：
+3. 创建本地 Cloudflare 变量文件：
 
-```
-REDIS_URL=your_redis_connection_url
+```bash
+cp .dev.vars.example .dev.vars
 ```
 
 4. 运行开发服务器：
@@ -53,13 +53,33 @@ npm run dev
 
 5. 打开浏览器访问 http://localhost:3000
 
-## 部署到 Vercel
+## 部署到 Cloudflare Workers
 
-1. Fork 本仓库到你的 GitHub 账户
-2. 在 Vercel 控制台创建新项目，选择导入你的 fork 仓库
-3. 配置环境变量：
-   - `REDIS_URL`: Redis 连接 URL
-4. 点击部署
+项目使用 OpenNext 运行 Next.js，并用 SQLite-backed Durable Objects 代替外部 Redis。`wrangler.jsonc` 已包含 `ROOM_STATE` 绑定和首次迁移，无需另外创建数据库。
+
+```bash
+npm install
+npm test
+npm run preview
+```
+
+本地预览通过后，登录并部署：
+
+```bash
+npx wrangler login
+npm run deploy
+```
+
+首次部署会自动创建 `RoomState` Durable Object 命名空间，并发布到当前账户的 `workers.dev` 子域。
+
+### 可选：Cloudflare TURN
+
+不配置 TURN 时，网站仍会使用 STUN 和项目内置的备用连接方案。若要使用自己的 Cloudflare Realtime TURN 密钥，请在 Worker 设置中添加两个加密变量：
+
+- `TURN_ID`: Cloudflare TURN Key ID
+- `TURN_TOKEN`: Cloudflare TURN API Token
+
+不要把真实密钥写进 `.dev.vars`、`.env` 或 Git 仓库。
 
 ## 使用方法
 

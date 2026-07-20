@@ -1,4 +1,5 @@
 import { storeIPInfo, getIPInfo } from '../../lib/redis';
+import { getClientIP } from '../../lib/client-ip.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,12 +8,9 @@ export default async function handler(req, res) {
 
   // 获取roomId和peerId参数
   const { roomId, peerId } = req.query;
+  const ip = getClientIP(req);
 
   try {
-    // 获取客户端IP
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = forwarded ? forwarded.split(',')[0] : req.socket.remoteAddress || '127.0.0.1';
-    
     // 使用备用IP API (ipinfo.io)，或在出错时使用虚拟数据
     try {
       const response = await fetch(`https://ipinfo.io/${ip}/json`);
@@ -43,13 +41,13 @@ export default async function handler(req, res) {
           org: ipData.org || 'Unknown'
         };
         
-        // 如果提供了roomId和peerId，直接将IP信息存储到Redis
+        // 如果提供了roomId和peerId，直接将IP信息存储到房间状态对象
         if (roomId && peerId) {
           console.log(`接收到IP请求与存储：roomId=${roomId}, peerId=${peerId}`, ipInfo);
           
           try {
             await storeIPInfo(roomId, peerId, ipInfo);
-            console.log(`已存储IP信息到Redis: roomId=${roomId}, peerId=${peerId}`);
+            console.log(`已存储IP信息: roomId=${roomId}, peerId=${peerId}`);
             
             // 验证存储是否成功
             const stored = await getIPInfo(roomId, peerId);
@@ -57,10 +55,10 @@ export default async function handler(req, res) {
               console.warn(`存储IP信息失败验证：roomId=${roomId}, peerId=${peerId}`);
             }
           } catch (storeError) {
-            console.error(`存储IP信息到Redis失败: ${storeError.message}`);
+            console.error(`存储IP信息失败: ${storeError.message}`);
           }
         } else {
-          console.log('未提供roomId或peerId，IP信息未存储到Redis');
+          console.log('未提供roomId或peerId，IP信息未持久化');
         }
         
         // 返回IP信息
@@ -85,13 +83,13 @@ export default async function handler(req, res) {
         _fallback: true
       };
       
-      // 如果提供了roomId和peerId，将回退数据也存储到Redis
+      // 如果提供了roomId和peerId，将回退数据也存储到房间状态对象
       if (roomId && peerId) {
         try {
           await storeIPInfo(roomId, peerId, fallbackIpInfo);
-          console.log(`已存储回退IP信息到Redis: roomId=${roomId}, peerId=${peerId}`);
+          console.log(`已存储回退IP信息: roomId=${roomId}, peerId=${peerId}`);
         } catch (storeError) {
-          console.error(`存储回退IP信息到Redis失败: ${storeError.message}`);
+          console.error(`存储回退IP信息失败: ${storeError.message}`);
         }
       }
       
@@ -102,7 +100,7 @@ export default async function handler(req, res) {
     
     // 返回错误信息，但包含基本IP数据保证UI不会崩溃
     return res.status(200).json({
-      ip: req.socket.remoteAddress || 'Unknown',
+      ip,
       error: error.message,
       city: 'Unknown',
       region: 'Unknown',

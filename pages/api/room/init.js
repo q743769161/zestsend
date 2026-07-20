@@ -1,13 +1,6 @@
-import { roomExists, setRoom, getRoom } from '../../../lib/redis';
+import { initializeRoom } from '../../../lib/redis';
+import { getClientIP } from '../../../lib/client-ip.mjs';
 import { isValidRoomId } from '../../../lib/utils';
-
-// 获取客户端IP，用于识别是否是同一用户
-function getClientIP(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  return forwarded 
-    ? forwarded.split(',')[0] 
-    : req.socket.remoteAddress || '127.0.0.1';
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -23,53 +16,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 检查房间是否存在
-    const exists = await roomExists(roomId);
-    
-    // 确定当前用户是创建者还是加入者
-    const isInitiator = !exists;
-    
-    // 如果房间已存在，检查人数和IP
-    if (exists) {
-      const room = await getRoom(roomId);
-      
-      // 检查用户是否已经在房间中（考虑刷新页面情况）
-      const userAlreadyInRoom = room && room.peers && room.peers.some(p => p.ip === clientIP);
-      
-      // 如果用户已在房间，不做限制
-      if (!userAlreadyInRoom) {
-        // 检查房间是否已满（超过2人且不是已在房间的人）
-        if (room && room.peers && room.peers.length >= 2) {
-          return res.status(403).json({
-            message: '房间已满，无法加入',
-            roomFull: true
-          });
-        }
-      }
-    }
-    
-    // 如果房间不存在，创建它
-    if (isInitiator) {
-      await setRoom(roomId, {
-        createdAt: new Date().toISOString(),
-        peers: [{
-          ip: clientIP,
-          joinedAt: new Date().toISOString()
-        }]
+    const { isInitiator, roomFull } = await initializeRoom(roomId, clientIP);
+
+    if (roomFull) {
+      return res.status(403).json({
+        message: '房间已满，无法加入',
+        roomFull: true
       });
-    } else {
-      // 更新现有房间，记录用户IP
-      const room = await getRoom(roomId);
-      if (room) {
-        // 只有当用户不在房间时才添加
-        if (!room.peers.some(p => p.ip === clientIP)) {
-          room.peers.push({
-            ip: clientIP,
-            joinedAt: new Date().toISOString()
-          });
-          await setRoom(roomId, room);
-        }
-      }
     }
     
     return res.status(200).json({
