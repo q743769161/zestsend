@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: '只允许GET请求' });
   }
 
-  const { roomId } = req.query;
+  const { roomId, clientId } = req.query;
   // 获取用户IP作为一种身份标识
   const clientIP = getClientIP(req);
 
@@ -16,7 +16,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { isInitiator, roomFull } = await initializeRoom(roomId, clientIP);
+    const { isInitiator, roomFull } = await initializeRoom(
+      roomId,
+      clientIP,
+      typeof clientId === 'string' && clientId ? clientId : clientIP,
+    );
 
     if (roomFull) {
       return res.status(403).json({

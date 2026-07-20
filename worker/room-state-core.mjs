@@ -2,12 +2,20 @@ export const SIGNAL_TTL_MS = 60 * 60 * 1_000;
 export const ROOM_TTL_MS = 3 * 60 * 60 * 1_000;
 export const IP_INFO_TTL_MS = ROOM_TTL_MS;
 
-export function initializeRoom(room, clientIP, joinedAt) {
+function matchesClient(peer, clientId, clientIP) {
+  if (peer.clientId) {
+    return peer.clientId === clientId;
+  }
+
+  return peer.ip === clientIP;
+}
+
+export function initializeRoom(room, clientIP, joinedAt, clientId = clientIP) {
   if (!room) {
     return {
       room: {
         createdAt: joinedAt,
-        peers: [{ ip: clientIP, joinedAt }],
+        peers: [{ clientId, ip: clientIP, joinedAt }],
       },
       isInitiator: true,
       roomFull: false,
@@ -15,8 +23,13 @@ export function initializeRoom(room, clientIP, joinedAt) {
   }
 
   const peers = room.peers ?? [];
-  if (peers.some((peer) => peer.ip === clientIP)) {
-    return { room, isInitiator: false, roomFull: false };
+  const existingPeer = peers.find((peer) => matchesClient(peer, clientId, clientIP));
+  if (existingPeer) {
+    return {
+      room,
+      isInitiator: existingPeer.type === "initiator",
+      roomFull: false,
+    };
   }
 
   if (peers.length >= 2) {
@@ -26,7 +39,7 @@ export function initializeRoom(room, clientIP, joinedAt) {
   return {
     room: {
       ...room,
-      peers: [...peers, { ip: clientIP, joinedAt }],
+      peers: [...peers, { clientId, ip: clientIP, joinedAt }],
     },
     isInitiator: false,
     roomFull: false,
@@ -35,6 +48,7 @@ export function initializeRoom(room, clientIP, joinedAt) {
 
 export function registerPeerInRoom(room, {
   peerId,
+  clientId,
   isInitiator,
   clientIP,
   joinedAt,
@@ -49,6 +63,7 @@ export function registerPeerInRoom(room, {
   }
 
   const peers = room.peers ?? [];
+  const resolvedClientId = clientId ?? clientIP;
   if (peers.some((peer) => peer.id === peerId)) {
     return {
       room,
@@ -58,7 +73,9 @@ export function registerPeerInRoom(room, {
     };
   }
 
-  const existingPeerIndex = peers.findIndex((peer) => peer.ip === clientIP);
+  const existingPeerIndex = peers.findIndex((peer) => (
+    matchesClient(peer, resolvedClientId, clientIP)
+  ));
   if (existingPeerIndex < 0 && peers.length >= 2) {
     return {
       room,
@@ -70,6 +87,7 @@ export function registerPeerInRoom(room, {
 
   const peerInfo = {
     id: peerId,
+    clientId: resolvedClientId,
     type: isInitiator ? "initiator" : "receiver",
     ip: clientIP,
     joinedAt,
@@ -88,6 +106,14 @@ export function registerPeerInRoom(room, {
     alreadyRegistered: false,
     roomFull: false,
   };
+}
+
+export function findRemotePeer(peers, peerId) {
+  return (peers ?? []).find((peer) => (
+    peer.id !== undefined
+    && peer.id !== null
+    && peer.id !== peerId
+  )) ?? null;
 }
 
 export function createExpiringValue(value, storedAt, ttlMs) {

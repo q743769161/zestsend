@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: '只允许POST请求' });
   }
 
-  const { roomId, peerId, isInitiator } = req.body;
+  const { roomId, peerId, clientId, isInitiator } = req.body;
   const clientIP = getClientIP(req);
 
   if (!roomId || !peerId) {
@@ -14,7 +14,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const result = await registerPeer(roomId, peerId, isInitiator, clientIP);
+    const result = await registerPeer(
+      roomId,
+      peerId,
+      isInitiator,
+      clientIP,
+      typeof clientId === 'string' && clientId ? clientId : clientIP,
+    );
 
     if (result.notFound) {
       return res.status(404).json({ message: '房间不存在' });

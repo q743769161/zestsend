@@ -74,6 +74,41 @@ test("room initialization serially rejects a third unique client", async () => {
   assert.equal(loaded.body.room.peers.length, 2);
 });
 
+test("room state keeps two client IDs that share one public IP", async () => {
+  const { object } = createRoomState();
+
+  await call(object, "initializeRoom", {
+    clientId: "client-a",
+    clientIP: "203.0.113.1",
+    joinedAt: "one",
+  });
+  await call(object, "initializeRoom", {
+    clientId: "client-b",
+    clientIP: "203.0.113.1",
+    joinedAt: "two",
+  });
+  await call(object, "registerPeer", {
+    clientId: "client-a",
+    peerId: "peer-a",
+    isInitiator: true,
+    clientIP: "203.0.113.1",
+    joinedAt: "three",
+  });
+  await call(object, "registerPeer", {
+    clientId: "client-b",
+    peerId: "peer-b",
+    isInitiator: false,
+    clientIP: "203.0.113.1",
+    joinedAt: "four",
+  });
+  const loaded = await call(object, "getRoom");
+
+  assert.deepEqual(loaded.body.room.peers.map((peer) => peer.id), [
+    "peer-a",
+    "peer-b",
+  ]);
+});
+
 test("peer registration is stored through the same room object", async () => {
   const { object } = createRoomState();
 

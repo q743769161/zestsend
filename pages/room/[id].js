@@ -11,6 +11,7 @@ import { P2PConnection } from '../../lib/webrtc';
 import { motion } from 'framer-motion';
 import { FiUsers, FiRefreshCw, FiCopy, FiCheck, FiMonitor, FiX } from 'react-icons/fi';
 import { formatBytes } from '../../lib/utils';
+import { getOrCreateClientId } from '../../lib/client-id.mjs';
 
 export default function Room() {
   const router = useRouter();
@@ -108,8 +109,14 @@ export default function Room() {
 
     const initRoom = async () => {
       try {
+        const clientId = getOrCreateClientId(
+          window.localStorage,
+          () => window.crypto.randomUUID(),
+        );
         addLog(`正在初始化房间: ${roomId}`);
-        const res = await fetch(`/api/room/init?roomId=${roomId}`);
+        const res = await fetch(
+          `/api/room/init?roomId=${encodeURIComponent(roomId)}&clientId=${encodeURIComponent(clientId)}`,
+        );
         const data = await res.json();
 
         if (res.ok) {
@@ -122,7 +129,7 @@ export default function Room() {
           });
 
           // 初始化连接
-          initConnection(data.isInitiator);
+          initConnection(data.isInitiator, clientId);
           
           // 标记为已初始化
           setInitialized(true);
@@ -158,7 +165,7 @@ export default function Room() {
   }, [roomId]); // 仅依赖roomId，通过ref控制重复执行
 
   // 初始化WebRTC连接
-  const initConnection = async (isInitiator) => {
+  const initConnection = async (isInitiator, clientId) => {
     try {
       // 生成随机的peerId
       const generatedPeerId = `zestsend-${roomId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -236,7 +243,7 @@ export default function Room() {
       
       // 向服务器注册peerId，只在未注册时进行
       if (!registrationRef.current) {
-        await registerPeer(generatedPeerId, isInitiator);
+        await registerPeer(generatedPeerId, isInitiator, clientId);
         registrationRef.current = true;
         setPeerRegistered(true);
       }
@@ -250,7 +257,7 @@ export default function Room() {
   };
 
   // 向服务器注册peerId
-  const registerPeer = async (peerId, isInitiator) => {
+  const registerPeer = async (peerId, isInitiator, clientId) => {
     // 防止重复注册
     if (registrationRef.current) {
       addLog(`Peer ID 已经注册，跳过注册过程`, 'info');
@@ -267,6 +274,7 @@ export default function Room() {
         body: JSON.stringify({
           roomId,
           peerId,
+          clientId,
           isInitiator
         }),
       });

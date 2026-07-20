@@ -92,9 +92,9 @@ export class RoomState {
     await this.state.storage.deleteAll();
   }
 
-  async initialize({ clientIP, joinedAt }) {
+  async initialize({ clientId, clientIP, joinedAt }) {
     const room = await this.readExpiring("room");
-    const result = initializeRoom(room, clientIP, joinedAt);
+    const result = initializeRoom(room, clientIP, joinedAt, clientId ?? clientIP);
 
     if (!result.roomFull) {
       await this.writeExpiring("room", result.room, ROOM_TTL_MS);

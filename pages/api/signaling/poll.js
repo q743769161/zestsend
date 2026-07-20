@@ -1,4 +1,5 @@
 import { getRoom, getIPInfo } from '../../../lib/redis';
+import { findRemotePeer } from '../../../worker/room-state-core.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -30,19 +31,11 @@ export default async function handler(req, res) {
     let connectionPriority = 'normal';
     
     if (room.peers && room.peers.length > 0) {
-      // 严格筛选：必须不是自己的peerId，并且必须不是同一个IP地址
-      const selfIP = selfPeer?.ip;
-      const otherPeers = room.peers.filter(p => 
-        p.id !== peerId && 
-        p.id !== undefined && 
-        p.id !== null &&
-        p.ip !== selfIP  // 增加IP检查，确保不是同一个用户的多个标签页
-      );
-      
-      if (otherPeers.length > 0) {
+      const remotePeer = findRemotePeer(room.peers, peerId);
+      if (remotePeer) {
         // 只取第一个其他对等方，支持1对1通信
-        remotePeerId = otherPeers[0].id;
-        remotePeerType = otherPeers[0].type;
+        remotePeerId = remotePeer.id;
+        remotePeerType = remotePeer.type;
         
         // 确保返回的对等方ID不等于请求的ID
         if (remotePeerId === peerId) {
